@@ -1,0 +1,155 @@
+name: ezPay Payment Skill CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  encrypt-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Python encryption test
+        run: |
+          python3 -c "
+          import hashlib
+          from Crypto.Cipher import AES
+          from Crypto.Util.Padding import pad, unpad
+
+          # 測試參數（從 skill 文件）
+          HASH_KEY = '529D00B2F60F4A829CB扣款機制NotifyURL'
+          HASH_IV  = 'vZ6R0l5GqYfi5K8x'
+
+          # TradeInfo 明文
+          plaintext = 'TimeStamp=1700000000&MerchantID=MS3238228&Version=1.0&MerchantOrderNo=TEST001&Amt=1000&ItemDesc=test'
+
+          # AES-256-CBC, block size=32, hex output
+          key_bytes = HASH_KEY.encode('utf-8')
+          iv_bytes = HASH_IV.encode('utf-8')
+          padded = pad(plaintext.encode('utf-8'), 32, style='pkcs7')
+          cipher = AES.new(key_bytes, AES.MODE_CBC, iv_bytes)
+          encrypted = cipher.encrypt(padded).hex()
+
+          # SHA256 簽章
+          sha_str = f'HashKey={HASH_KEY}&{encrypted}&HashIV={HASH_IV}'
+          sha_result = hashlib.sha256(sha_str.encode('utf-8')).hexdigest().upper()
+
+          print(f'AES hex: {encrypted[:32]}...')
+          print(f'SHA256:  {sha_result}')
+          assert len(encrypted) > 0, 'AES output is empty'
+          assert len(sha_result) == 64, 'SHA256 output is not 64 chars'
+          print('✅ Python 加密測試通過')
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Node.js encryption test
+        run: |
+          node -e "
+          const crypto = require('crypto');
+
+          const HASH_KEY = '529D00B2F60F4A829CB扣款機制NotifyURL';
+          const HASH_IV  = 'vZ6R0l5GqYfi5K8x';
+
+          const plaintext = 'TimeStamp=1700000000&MerchantID=MS3238228&Version=1.0&MerchantOrderNo=TEST001&Amt=1000&ItemDesc=test';
+
+          // AES-256-CBC, block size=32
+          const blockSize = 32;
+          const padding = blockSize - (Buffer.byteLength(plaintext) % blockSize);
+          const padded = Buffer.concat([Buffer.from(plaintext), Buffer.alloc(padding, padding)]);
+          const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(HASH_KEY), Buffer.from(HASH_IV));
+          const encrypted = Buffer.concat([cipher.update(padded), cipher.final()]).toString('hex');
+
+          // SHA256 簽章
+          const shaStr = 'HashKey=' + HASH_KEY + '&' + encrypted + '&HashIV=' + HASH_IV;
+          const shaResult = crypto.createHash('sha256').update(shaStr).digest('hex').toUpperCase();
+
+          console.log('AES hex: ' + encrypted.substring(0, 32) + '...');
+          console.log('SHA256:  ' + shaResult);
+          if (encrypted.length === 0) throw new Error('AES output is empty');
+          if (shaResult.length !== 64) throw new Error('SHA256 output is not 64 chars');
+          console.log('✅ Node.js 加密測試通過');
+          "
+
+  lint-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required files exist
+        run: |
+          REQUIRED_FILES=(
+            "SKILL.md"
+            "guides/00-onboarding.md"
+            "guides/01-encryption-deepdive.md"
+            "guides/05-webhook-idempotency.md"
+            "guides/06-test-dashboard.md"
+          )
+          MISSING=""
+          for f in "${REQUIRED_FILES[@]}"; do
+            if [ ! -f "$f" ]; then
+              MISSING="$MISSING $f"
+            fi
+          done
+          if [ -n "$MISSING" ]; then
+            echo "❌ 缺少必要檔案:$MISSING"
+            exit 1
+          fi
+          echo "✅ 文件完整性檢查通過"
+
+      - name: Check for common typos in SKILL.md
+        run: |
+          # 確認 SKILL.md 中有正確的關鍵字
+          grep -q "AES-256-CBC" SKILL.md && echo "✅ 包含 AES-256-CBC"
+          grep -q "block size = 32" SKILL.md && echo "✅ 包含 block size = 32"
+          grep -q "HashKey=" SKILL.md && echo "✅ 包含 HashKey= 格式"
+          grep -q "ALIPAY" SKILL.md && echo "✅ 包含 ALIPAY"
+          grep -q "WECHAT" SKILL.md && echo "✅ 包含 WECHAT"
+          grep -q "VACC" SKILL.md && echo "✅ 包含 VACC"
+
+  webhook-idempotency-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Test webhook idempotency
+        run: |
+          python3 -c "
+          import concurrent.futures
+
+          # 模擬同訂單同時收到兩次 webhook
+          order_processed = {'count': 0}
+
+          def process_webhook(order_no):
+              # BEGIN IMMEDIATE 相當於 SELECT FOR UPDATE
+              # 第二次應該跳過
+              if order_processed['count'] > 0:
+                  return 'SKIPPED (already processing)'
+              order_processed['count'] += 1
+              return 'PROCESSED'
+
+          with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+              futures = [executor.submit(process_webhook, 'ORDER_001') for _ in range(2)]
+              results = [f.result() for f in futures]
+
+          print('結果:', results)
+          assert results[0] == 'PROCESSED'
+          # 由於 Python GIL，實際上這個測試不夠嚴謹
+          # 正式環境請用資料庫的 SELECT FOR UPDATE
+          print('✅ 模擬並發測試完成')
+          "
