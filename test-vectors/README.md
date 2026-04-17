@@ -1,6 +1,6 @@
 # Test Vectors
 
-本目錄用來放 ezPay 串接的跨語言驗證向量，目標類似 ECPay skill 的 `test-vectors/`：
+本目錄用來放 ezPay 串接的跨語言驗證向量：
 
 - AES-256-CBC + PKCS7 + hex
 - SHA256 `HashKey={key}&{AES_hex}&HashIV={iv}`（uppercase）
