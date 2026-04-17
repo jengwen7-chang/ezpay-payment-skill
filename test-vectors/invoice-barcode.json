@@ -1,0 +1,12 @@
+[
+  {
+    "name": "checkBarCode-request-sample",
+    "endpoint": "https://cinv.ezpay.com.tw/Api_inv_application/checkBarCode",
+    "merchantId": "3629765",
+    "version": "1.0",
+    "respondType": "JSON",
+    "hashKey": "ItCLvnV79uCh88vMPbxwbcf2kxbkglCZ",
+    "hashIV": "OeKkBGrLa33jby51",
+    "plaintext": "TimeStamp=1700000000&CellphoneBarcode=/D8GTA7Q"
+  }
+]

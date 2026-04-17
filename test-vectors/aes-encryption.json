@@ -1,0 +1,9 @@
+[
+  {
+    "name": "invoice-checkBarCode-sample",
+    "hashKey": "ItCLvnV79uCh88vMPbxwbcf2kxbkglCZ",
+    "hashIV": "OeKkBGrLa33jby51",
+    "plaintext": "TimeStamp=1700000000&CellphoneBarcode=/D8GTA7Q",
+    "notes": "Invoice barcode API sample based on BDV_1_0_0 process; hex/checkvalue should be validated cross-language."
+  }
+]
