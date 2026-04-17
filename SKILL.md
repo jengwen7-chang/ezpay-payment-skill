@@ -29,6 +29,11 @@
 
 ---
 
+## 涵蓋服務
+
+- 一般交易：`CREDIT` / `P2GEACC` / `ACCLINK` / `WEBATM` / `CVS` / `VACC`
+- 跨境交易：`ALIPAY` / `WECHAT`
+
 ## API 端點（Quick Table）
 
 | API | 正式環境 | 測試環境 | Version |
