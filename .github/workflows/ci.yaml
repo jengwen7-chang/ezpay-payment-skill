@@ -27,7 +27,7 @@ jobs:
           from Crypto.Cipher import AES
           from Crypto.Util.Padding import pad
 
-          HASH_KEY = '529D00B2F60F4A829CB扣款機制NotifyURL'
+          HASH_KEY = '529D00B2F60F4A829CB0000000000000'
           HASH_IV  = 'vZ6R0l5GqYfi5K8x'
           plaintext = 'TimeStamp=1700000000&MerchantID=MS3238228&Version=1.0&MerchantOrderNo=TEST001&Amt=1000&ItemDesc=test'
 
@@ -56,7 +56,7 @@ jobs:
         run: |
           node << 'NODEOF'
           const crypto = require('crypto');
-          const HASH_KEY = '529D00B2F60F4A829CB扣款機制NotifyURL';
+          const HASH_KEY = '529D00B2F60F4A829CB0000000000000';
           const HASH_IV  = 'vZ6R0l5GqYfi5K8x';
           const plaintext = 'TimeStamp=1700000000&MerchantID=MS3238228&Version=1.0&MerchantOrderNo=TEST001&Amt=1000&ItemDesc=test';
 
@@ -64,6 +64,7 @@ jobs:
           const padding = blockSize - (Buffer.byteLength(plaintext) % blockSize);
           const padded = Buffer.concat([Buffer.from(plaintext), Buffer.alloc(padding, padding)]);
           const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(HASH_KEY), Buffer.from(HASH_IV));
+          cipher.setAutoPadding(false);
           const encrypted = Buffer.concat([cipher.update(padded), cipher.final()]).toString('hex');
 
           const shaStr = 'HashKey=' + HASH_KEY + '&' + encrypted + '&HashIV=' + HASH_IV;
