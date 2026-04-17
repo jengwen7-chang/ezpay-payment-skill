@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ezPay 電子發票 — 加密測試</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #333; min-height: 100vh; padding: 24px; }
+  h1 { font-size: 1.25rem; color: #1a1a2e; margin-bottom: 6px; }
+  .subtitle { font-size: 0.8rem; color: #888; margin-bottom: 24px; }
+  .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .section-title { font-size: 0.85rem; font-weight: 700; color: #555; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  label { display: block; font-size: 0.78rem; color: #666; margin-bottom: 4px; }
+  input, select, textarea { width: 100%; padding: 8px 10px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 0.85rem; outline: none; transition: border-color 0.2s; }
+  input:focus, select:focus, textarea:focus { border-color: #5b7jdf; }
+  textarea { resize: vertical; font-family: monospace; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .btn { padding: 9px 18px; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background 0.2s, opacity 0.2s; }
+  .btn-primary { background: #5b7jdf; color: #fff; }
+  .btn-primary:hover { background: #4a6ccf; }
+  .btn-secondary { background: #e8ecf0; color: #333; }
+  .btn-secondary:hover { background: #dce2ea; }
+  .btn-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  pre { background: #f4f6f8; border: 1px solid #e0e4ea; border-radius: 8px; padding: 12px; font-size: 0.78rem; line-height: 1.6; white-space: pre-wrap; word-break: break-all; overflow-x: auto; max-height: 220px; overflow-y: auto; }
+  .hash-label { font-size: 0.72rem; color: #999; margin-top: 4px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+  .badge-enc { background: #e8f5e9; color: #2e7d32; }
+  .badge-dec { background: #e3f2fd; color: #1565c0; }
+  .badge-err { background: #fce4ec; color: #c62828; }
+  .result-block { margin-top: 10px; }
+  .result-label { font-size: 0.75rem; color: #888; margin-bottom: 4px; }
+  .divider { border: none; border-top: 1px solid #eee; margin: 16px 0; }
+  .info-box { background: #f0f7ff; border: 1px solid #c5dcf5; border-radius: 8px; padding: 12px; font-size: 0.8rem; color: #1a3a5c; line-height: 1.6; }
+  .info-box code { background: #fff; padding: 1px 5px; border-radius: 4px; font-size: 0.75rem; }
+  @media (max-width: 600px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<h1>ezPay 電子發票 — 加密 / 解密 測試工具</h1>
+<p class="subtitle">AES-256-CBC · PKCS7 · hex output · SHA256(HashKey=&AES&HashIV=)</p>
+
+<!-- ========== 加密 ========== -->
+<div class="card">
+  <div class="section-title">🔐 加密 PostData_</div>
+  <div class="grid2">
+    <div>
+      <label>MerchantID</label>
+      <input id="enc-merchant" value="3629765">
+    </div>
+    <div>
+      <label>Version</label>
+      <input id="enc-version" value="1.0">
+    </div>
+  </div>
+  <div class="grid3" style="margin-top:12px">
+    <div>
+      <label>HashKey</label>
+      <input id="enc-hashkey" value="ItCLvnV79uCh88vMPbxwbcf2kxbkglCZ">
+    </div>
+    <div>
+      <label>HashIV</label>
+      <input id="enc-hashiv" value="OeKkBGrLa33jby51">
+    </div>
+    <div>
+      <label>TimeStamp（空白=當下）</label>
+      <input id="enc-timestamp" value="" placeholder="自動產生">
+    </div>
+  </div>
+  <div style="margin-top:12px">
+    <label>PostData_ 明文（Inner）</label>
+    <textarea id="enc-postdata" rows="4" placeholder="例如：TimeStamp=...&CellphoneBarcode=/D8GTA7Q">TimeStamp=&CellphoneBarcode=/D8GTA7Q</textarea>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="doEncrypt()">加密 →</button>
+    <button class="btn btn-secondary" onclick="populateTimestamp()">✨ 自動填 TimeStamp</button>
+  </div>
+
+  <div class="result-block">
+    <div class="result-label">PostData_（AES hex）</div>
+    <pre id="enc-result-hex"></pre>
+  </div>
+  <div class="result-block">
+    <div class="result-label">CheckValue（SHA256）</div>
+    <pre id="enc-result-check"></pre>
+  </div>
+  <div class="result-block">
+    <div class="result-label">完整 POST Body</div>
+    <pre id="enc-result-body"></pre>
+  </div>
+</div>
+
+<!-- ========== 解密 ========== -->
+<div class="card">
+  <div class="section-title">🔓 解密 PostData_</div>
+  <div class="grid2" style="margin-bottom:12px">
+    <div>
+      <label>HashKey</label>
+      <input id="dec-hashkey" value="ItCLvnV79uCh88vMPbxwbcf2kxbkglCZ">
+    </div>
+    <div>
+      <label>HashIV</label>
+      <input id="dec-hashiv" value="OeKkBGrLa33jby51">
+    </div>
+  </div>
+  <div>
+    <label>PostData_（hex 字串）</label>
+    <textarea id="dec-hex" rows="4" placeholder="貼上要解密的 hex 字串..."></textarea>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="doDecrypt()">解密 →</button>
+  </div>
+  <div class="result-block">
+    <div class="result-label">解密後明文（UTF-8）</div>
+    <pre id="dec-result-plain"></pre>
+  </div>
+</div>
+
+<!-- ========== API 測試 ========== -->
+<div class="card">
+  <div class="section-title">🌐 API 測試</div>
+  <div class="grid2">
+    <div>
+      <label>Endpoint</label>
+      <select id="api-endpoint">
+        <option value="https://cinv.ezpay.com.tw/Api_inv_application/checkBarCode">測試環境 /checkBarCode</option>
+        <option value="https://cinv.ezpay.com.tw/Api_inv_application/createInvoice">測試環境 /createInvoice</option>
+        <option value="https://inv.ezpay.com.tw/Api_inv_application/checkBarCode">正式環境 /checkBarCode</option>
+      </select>
+    </div>
+    <div>
+      <label>RespondType</label>
+      <select id="api-respond">
+        <option value="JSON">JSON</option>
+        <option value="XML">XML</option>
+      </select>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="doApiTest()">🚀 發送測試請求</button>
+    <button class="btn btn-secondary" onclick="populateFromEncrypt()">📋 帶入上方加密結果</button>
+  </div>
+  <div class="result-block">
+    <div class="result-label">HTTP 回應</div>
+    <pre id="api-result"></pre>
+  </div>
+</div>
+
+<!-- ========== 說明 ========== -->
+<div class="card">
+  <div class="section-title">📖 加密流程說明</div>
+  <div class="info-box">
+    <b>Step 1.</b> PostData_ 明文 = <code>TimeStamp=...</code> + <code>&amp;</code> + <code>CellphoneBarcode=/D8GTA7Q</code><br><br>
+    <b>Step 2.</b> AES-256-CBC 加密，PKCS7 padding，<b>輸出 hex（不是 base64）</b><br>
+    &nbsp;&nbsp;blocksize=16, key=32Bytes(HASH_KEY), iv=16Bytes(HASH_IV)<br><br>
+    <b>Step 3.</b> CheckValue = SHA256(<code>"HashKey=" + HashKey + "&amp;" + PostData_hex + "&amp;HashIV=" + HashIV</code>)，转大写<br><br>
+    <b>Step 4.</b> POST Body: <code>MerchantID_=&amp;Version=1.0&amp;RespondType=JSON&amp;PostData_=&lt;hex&gt;&amp;CheckValue=&lt;sha256&gt;</code>
+  </div>
+</div>
+
+<script>
+// ── AES-256-CBC + PKCS7 + hex ──
+async function aesEncrypt(plaintext, key, iv) {
+  const keyBytes = new TextEncoder().encode(key);
+  const ivBytes  = new TextEncoder().encode(iv);
+  const msgBytes = new TextEncoder().encode(plaintext);
+  const blockSize = 16;
+  const padLen = blockSize - (msgBytes.length % blockSize);
+  const padded = new Uint8Array([...msgBytes, ...new Array(padLen).fill(padLen)]);
+  const cryptoKey = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-CBC' }, false, ['encrypt']);
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-CBC', iv: ivBytes }, cryptoKey, padded);
+  return Array.from(new Uint8Array(encrypted)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function aesDecrypt(hexStr, key, iv) {
+  const keyBytes = new TextEncoder().encode(key);
+  const ivBytes  = new TextEncoder().encode(iv);
+  const encryptedBytes = new Uint8Array(hexStr.match(/.{2}/g).map(b => parseInt(b, 16)));
+  const cryptoKey = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-CBC' }, false, ['decrypt']);
+  const decrypted = await crypto.subtle.decrypt({ name: 'AES-CBC', iv: ivBytes }, cryptoKey, encryptedBytes);
+  return new TextDecoder().decode(decrypted).replace(/\x00+$/, ''); // strip PKCS7 trailing nulls
+}
+
+async function sha256(str) {
+  return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str))))
+    .map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
+// ── Encrypt ──
+async function doEncrypt() {
+  const hashkey = document.getElementById('enc-hashkey').value.trim();
+  const hashiv  = document.getElementById('enc-hashiv').value.trim();
+  let ts = document.getElementById('enc-timestamp').value.trim();
+  const postdata = document.getElementById('enc-postdata').value.trim();
+  const merchant = document.getElementById('enc-merchant').value.trim();
+  const version  = document.getElementById('enc-version').value.trim();
+
+  if (!ts) {
+    ts = Math.floor(Date.now() / 1000).toString();
+    document.getElementById('enc-timestamp').value = ts;
+  }
+
+  // Replace placeholder if user left "TimeStamp=&" as-is
+  const innerText = postdata.includes('TimeStamp=') && postdata.split('&')[0] === 'TimeStamp='
+    ? postdata.replace(/^TimeStamp=/, `TimeStamp=${ts}`)
+    : postdata;
+
+  try {
+    const postDataHex = await aesEncrypt(innerText, hashkey, hashiv);
+    const checkValue  = await sha256(`HashKey=${hashkey}&${postDataHex}&HashIV=${hashiv}`);
+    const body = `MerchantID_=${merchant}&Version=${version}&RespondType=JSON&PostData_=${postDataHex}&CheckValue=${checkValue}`;
+
+    document.getElementById('enc-result-hex').textContent   = postDataHex;
+    document.getElementById('enc-result-check').textContent = checkValue;
+    document.getElementById('enc-result-body').textContent  = body;
+  } catch (e) {
+    alert('加密錯誤：' + e.message);
+  }
+}
+
+// ── Decrypt ──
+async function doDecrypt() {
+  const hashkey = document.getElementById('dec-hashkey').value.trim();
+  const hashiv  = document.getElementById('dec-hashiv').value.trim();
+  const hexStr  = document.getElementById('dec-hex').value.trim();
+
+  if (!hexStr) { alert('請輸入 hex 字串'); return; }
+  try {
+    const plain = await aesDecrypt(hexStr, hashkey, hashiv);
+    document.getElementById('dec-result-plain').textContent = plain;
+  } catch (e) {
+    document.getElementById('dec-result-plain').textContent = '❌ 解密失敗：' + e.message;
+  }
+}
+
+// ── Populate timestamp ──
+function populateTimestamp() {
+  document.getElementById('enc-timestamp').value = Math.floor(Date.now() / 1000).toString();
+}
+
+// ── Populate API test from encrypt result ──
+function populateFromEncrypt() {
+  const hex  = document.getElementById('enc-result-hex').textContent;
+  const check = document.getElementById('enc-result-check').textContent;
+  if (!hex) { alert('請先執行加密'); return; }
+  document.getElementById('api-endpoint').value = 'https://cinv.ezpay.com.tw/Api_inv_application/checkBarCode';
+}
+
+// ── API Test ──
+async function doApiTest() {
+  const hashkey  = document.getElementById('enc-hashkey').value.trim();
+  const hashiv   = document.getElementById('enc-hashiv').value.trim();
+  const merchant = document.getElementById('enc-merchant').value.trim();
+  const version  = document.getElementById('enc-version').value.trim();
+  const endpoint = document.getElementById('api-endpoint').value;
+  const respond  = document.getElementById('api-respond').value;
+  const innerText = document.getElementById('enc-postdata').value.trim();
+  let ts = document.getElementById('enc-timestamp').value.trim() || Math.floor(Date.now() / 1000).toString();
+
+  const finalInner = innerText.replace(/^TimeStamp=/, `TimeStamp=${ts}`);
+
+  try {
+    const postDataHex = await aesEncrypt(finalInner, hashkey, hashiv);
+    const checkValue  = await sha256(`HashKey=${hashkey}&${postDataHex}&HashIV=${hashiv}`);
+    const body = `MerchantID_=${merchant}&Version=${version}&RespondType=${respond}&PostData_=${postDataHex}&CheckValue=${checkValue}`;
+
+    document.getElementById('api-result').textContent = '⏳ 發送中...';
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+
+    const text = await res.text();
+    let formatted;
+    try { formatted = JSON.stringify(JSON.parse(text), null, 2); } catch { formatted = text; }
+    document.getElementById('api-result').textContent = `HTTP ${res.status} ${res.statusText}\n\n${formatted}`;
+  } catch (e) {
+    document.getElementById('api-result').textContent = '❌ 請求失敗：' + e.message;
+  }
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+  populateTimestamp();
+});
+</script>
+</body>
+</html>
