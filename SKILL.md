@@ -80,3 +80,9 @@
 ---
 
 （以下沿用你原本的 SKILL.md 詳細內容；如需我把全文再整理成 ECPay 式更短摘要，我可以在你 approve 後再做一次重構。）
+
+### Payment Methods
+
+- ALIPAY
+- WECHAT
+- VACC
