@@ -45,7 +45,7 @@ curl -X POST https://your-domain.com/notify \
 
 ```
 測試環境（❌ 不能用在正式）：
-  HashKey = 529D00B2F60F4A829CB扣款機制NotifyURL
+  HashKey = 529D00B2F60F4A829CB0000000000000
   HashIV  = vZ6R0l5GqYfi5K8x
 
 正式環境（✅）：
