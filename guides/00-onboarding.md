@@ -182,3 +182,118 @@ CVV：任意 3 碼
 - [ ] 看完 [01-encryption-deepdive.md](01-encryption-deepdive.md) — 確認加密完全理解
 - [ ] 看 [05-webhook-idempotency.md](05-webhook-idempotency.md) — **上線前必讀**
 - [ ] 看 [06-test-dashboard.md](06-test-dashboard.md) — 完整測試流程
+
+---
+
+# 🧾 電子發票快速開始
+
+## 申請發票測試環境
+
+1. 至 `https://cinv.ezpay.com.tw/` 申請會員
+2. 取得 **MerchantID**（商店代號）、**HashKey**（32 碼）、**HashIV**（16 碼）
+3. 於後台【發票字軌號碼設定】新增測試字軌
+
+## 發票測試環境 URL
+
+```
+MerchantID = 你的測試商店代號
+HashKey = 你的測試 HashKey（32 字元）
+HashIV = 你的測試 HashIV（16 字元）
+API_URL = https://cinv.ezpay.com.tw
+```
+
+## 最快 Hello Invoice
+
+### Python
+
+```python
+import hashlib, time, urllib.parse
+from Crypto.Cipher import AES
+
+MERCHANT_ID = "你的商店代號"
+HASH_KEY = "你的HashKey（32字）"
+HASH_IV = "你的HashIV（16字）"
+API_URL = "https://cinv.ezpay.com.tw/Api/invoice_issue"
+
+def aes_encrypt(text):
+    key = HASH_KEY.encode()
+    iv = HASH_IV.encode()
+    block_size = 32
+    pad_len = block_size - (len(text) % block_size)
+    padded = text + chr(pad_len) * pad_len
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    return cipher.encrypt(padded.encode()).hex()  # 小寫 Hex
+
+def issue_invoice_b2c(order_no, buyer_name, total_amt):
+    tax_amt = round(total_amt - (total_amt / 1.05))
+    amt = total_amt - tax_amt
+    params = {
+        'RespondType': 'JSON',
+        'Version': '1.5',
+        'TimeStamp': str(int(time.time())),
+        'MerchantOrderNo': order_no,
+        'Status': '1',
+        'Category': 'B2C',
+        'BuyerName': buyer_name,
+        'PrintFlag': 'N',
+        'CarrierType': '2',
+        'CarrierNum': urllib.parse.quote('/ABC1234'),
+        'TaxType': '1',
+        'TaxRate': '5',
+        'Amt': str(amt),
+        'TaxAmt': str(tax_amt),
+        'TotalAmt': str(total_amt),
+        'ItemName': '測試商品',
+        'ItemCount': '1',
+        'ItemUnit': '式',
+        'ItemPrice': str(total_amt),  # B2C 含稅
+        'ItemAmt': str(total_amt),
+    }
+    query = urllib.parse.urlencode(params)
+    post_data = aes_encrypt(query)
+    # 組成 form post：MerchantID_=...&PostData_=...
+    return {'url': API_URL, 'MerchantID_': MERCHANT_ID, 'PostData_': post_data}
+```
+
+### Node.js
+
+```javascript
+const crypto = require('crypto')
+const https = require('https')
+
+const MERCHANT_ID = "你的商店代號"
+const HASH_KEY = Buffer.from("你的HashKey（32字）")
+const HASH_IV = Buffer.from("你的HashIV（16字）")
+
+function aesEncrypt(text) {
+    const blockSize = 32
+    const padLen = blockSize - (Buffer.byteLength(text) % blockSize)
+    const padded = Buffer.concat([Buffer.from(text), Buffer.alloc(padLen, padLen)])
+    const cipher = crypto.createCipheriv('aes-256-cbc', HASH_KEY, HASH_IV)
+    cipher.setAutoPadding(false)
+    return Buffer.concat([cipher.update(padded), cipher.final()]).toString('hex')
+}
+
+function issueInvoiceB2C(orderNo, buyerName, totalAmt) {
+    const taxAmt = Math.round(totalAmt - (totalAmt / 1.05))
+    const amt = totalAmt - taxAmt
+    const params = new URLSearchParams({
+        RespondType: 'JSON', Version: '1.5',
+        TimeStamp: Math.floor(Date.now() / 1000).toString(),
+        MerchantOrderNo: orderNo, Status: '1', Category: 'B2C',
+        BuyerName: buyerName, PrintFlag: 'N',
+        CarrierType: '2', CarrierNum: encodeURIComponent('/ABC1234'),
+        TaxType: '1', TaxRate: '5',
+        Amt: amt, TaxAmt: taxAmt, TotalAmt: totalAmt,
+        ItemName: '測試商品', ItemCount: '1', ItemUnit: '式',
+        ItemPrice: totalAmt, ItemAmt: totalAmt,
+    }).toString()
+    return { MerchantID_: MERCHANT_ID, PostData_: aesEncrypt(params) }
+}
+```
+
+## 發票 API 下一步
+
+- [ ] 看 [02-invoice-api.md](02-invoice-api.md) — 開立發票完整欄位定義
+- [ ] 看 [02b-allowance-api.md](02b-allowance-api.md) — 折讓與作廢
+- [ ] 看 [02d-barcode-lovecode-api.md](02d-barcode-lovecode-api.md) — 載具驗證

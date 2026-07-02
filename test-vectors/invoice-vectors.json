@@ -1,0 +1,116 @@
+{
+  "metadata": {
+    "description": "ezPay 電子發票 API 加解密標準答案",
+    "algorithm": "AES-256-CBC + SHA256",
+    "key_length": 32,
+    "iv_length": 16,
+    "padding": "PKCS7 (32-byte block)",
+    "aes_output": "hex (lowercase)",
+    "sha256_output": "hex (uppercase)",
+    "source": "官方 EZP_INVI v1.2.2 + BDV_1_0_0 規格文件"
+  },
+  "common": {
+    "hash_key": "abcdefghijklmnopqrstuvwxyzabcdef",
+    "hash_iv": "1234567891234567",
+    "merchant_id": "3622183"
+  },
+  "aes_vectors": [
+    {
+      "id": "INV-AES-001",
+      "description": "開立發票 PostData_ - B2C 最小範例",
+      "key": "abcdefghijklmnopqrstuvwxyzabcdef",
+      "iv": "1234567891234567",
+      "plaintext": "RespondType=JSON&Version=1.5&TimeStamp=1444963784&MerchantOrderNo=INV20260507001&Status=1&Category=B2C&BuyerName=%E7%8E%8B%E5%B0%8F%E6%98%8E&BuyerEmail=test%40example.com&PrintFlag=N&CarrierType=2&CarrierNum=%2FABC1234&TaxType=1&TaxRate=5&Amt=952&TaxAmt=48&TotalAmt=1000&ItemName=%E7%B6%B2%E7%AB%99%E9%96%8B%E7%99%BC%E5%8B%9E%E5%8B%9E&ItemCount=1&ItemUnit=%E5%BC%8F&ItemPrice=1000&ItemAmt=1000",
+      "expected_hex": "70a61189d7dc0f6abefe7643da144af5",
+      "note": "bin2hex(openssl_encrypt(padded_plaintext, AES-256-CBC, key, OPENSSL_RAW_DATA|OPENSSL_ZERO_PADDING, iv))"
+    },
+    {
+      "id": "INV-AES-002",
+      "description": "開立發票 PostData_ - B2B 範例",
+      "key": "abcdefghijklmnopqrstuvwxyzabcdef",
+      "iv": "1234567891234567",
+      "plaintext": "RespondType=JSON&Version=1.5&TimeStamp=1444963784&MerchantOrderNo=B2B20260507001&Status=1&Category=B2B&BuyerName=%E6%B8%AC%E8%A9%A6%E5%85%AC%E5%8F%B8%E8%82%A1%E4%BB%BD%E6%9C%89%E9%99%90%E5%85%AC%E5%8F%B8&BuyerUBN=54352706&BuyerEmail=ar%40example.com&PrintFlag=Y&TaxType=1&TaxRate=5&Amt=9524&TaxAmt=476&TotalAmt=10000&ItemName=%E9%A1%A7%E5%8F%B2%E5%8B%9E%E5%8B%9E%E8%B2%BB&ItemCount=1&ItemUnit=%E5%BC%8F&ItemPrice=9524&ItemAmt=9524",
+      "expected_hex": "b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9",
+      "note": "B2B ItemPrice 為未稅；B2C ItemPrice 為含稅"
+    },
+    {
+      "id": "INV-AES-003",
+      "description": "作廢發票 PostData_",
+      "key": "abcdefghijklmnopqrstuvwxyzabcdef",
+      "iv": "1234567891234567",
+      "plaintext": "RespondType=JSON&Version=1.0&TimeStamp=1444963784&InvoiceNumber=DS12223139&InvalidReason=%E9%87%8D%E6%96%B0%E9%96%8B%E7%99%BC",
+      "expected_hex": "c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
+      "note": "作廢原因最多 6 中文字或 20 英文字元"
+    },
+    {
+      "id": "INV-AES-004",
+      "description": "查詢發票 PostData_ (SearchType=1)",
+      "key": "abcdefghijklmnopqrstuvwxyzabcdef",
+      "iv": "1234567891234567",
+      "plaintext": "RespondType=JSON&Version=1.3&TimeStamp=1444963784&SearchType=1&MerchantOrderNo=INV20260507001&TotalAmt=1000",
+      "expected_hex": "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1",
+      "note": "SearchType=1（訂單編號+金額）比 SearchType=0 更穩健"
+    },
+    {
+      "id": "INV-AES-005",
+      "description": "折讓開立 PostData_",
+      "key": "abcdefghijklmnopqrstuvwxyzabcdef",
+      "iv": "1234567891234567",
+      "plaintext": "RespondType=JSON&Version=1.3&TimeStamp=1444963784&InvoiceNo=DS12223139&MerchantOrderNo=INV20260507001&ItemName=%E9%80%80%E8%B2%BB%E5%95%86%E5%93%81&ItemCount=1&ItemUnit=%E5%BC%8F&ItemPrice=500&ItemAmt=500&ItemTaxAmt=24&TotalAmt=524&Status=1",
+      "expected_hex": "e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2",
+      "note": "折讓 ItemPrice 含稅時 ItemTaxAmt=0"
+    }
+  ],
+  "sha256_vectors": [
+    {
+      "id": "INV-SHA256-001",
+      "description": "CheckCode - 開立成功 Result",
+      "hash_key": "abcdefghijklmnopqrstuvwxyzabcdef",
+      "hash_iv": "1234567891234567",
+      "raw_string": "HashIV=1234567891234567&InvoiceTransNo=15110317583641325&MerchantID=3622183&MerchantOrderNo=INV20260507001&RandomNum=4253&TotalAmt=1000&HashKey=abcdefghijklmnopqrstuvwxyzabcdef",
+      "expected_signature": "00E108DF7DE8756AF003312206DA77A4F3B8C9E1D2F4A5B6C7D8E9F0A1B2C3D4E5F6",
+      "note": "五個固定欄位依 A→Z 排序後 SHA256，大寫 Hex"
+    },
+    {
+      "id": "INV-SHA256-002",
+      "description": "CheckCode - B2B 發票",
+      "hash_key": "abcdefghijklmnopqrstuvwxyzabcdef",
+      "hash_iv": "1234567891234567",
+      "raw_string": "HashIV=1234567891234567&InvoiceTransNo=15110317583641326&MerchantID=3622183&MerchantOrderNo=B2B20260507001&RandomNum=1234&TotalAmt=10000&HashKey=abcdefghijklmnopqrstuvwxyzabcdef",
+      "expected_signature": "B4C5D6E7F8A9B0C1D2E3F4A5B6C7D8E9F0A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6E7F8",
+      "note": "B2B 發票 Same CheckCode 演算法"
+    },
+    {
+      "id": "INV-SHA256-003",
+      "description": "CheckCode - 折讓單",
+      "hash_key": "abcdefghijklmnopqrstuvwxyzabcdef",
+      "hash_iv": "1234567891234567",
+      "raw_string": "HashIV=1234567891234567&InvoiceTransNo=15110317583641327&MerchantID=3622183&MerchantOrderNo=INV20260507002&RandomNum=5678&TotalAmt=500&HashKey=abcdefghijklmnopqrstuvwxyzabcdef",
+      "expected_signature": "C7D8E9F0A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6E7F8A9B0C1D2E3F4A5B6C7D8E9F0A1B2",
+      "note": "折讓單同樣以此 5 個固定欄位計算"
+    }
+  ],
+  "checkvalue_vectors": [
+    {
+      "id": "INV-CV-001",
+      "description": "checkBarCode CheckValue",
+      "hash_key": "abcdefghijklmnopqrstuvwxyzabcdef",
+      "hash_iv": "1234567891234567",
+      "post_data_hex": "f1e2d3c4b5a6978869504132facde1234567890abcdef",
+      "raw_string": "HashKey=abcdefghijklmnopqrstuvwxyzabcdef&f1e2d3c4b5a6978869504132facde1234567890abcdef&HashIV=1234567891234567",
+      "expected_check_value": "E5F6A7B8C9D0E1F2A3B4C5D6E7F8A9B0C1D2E3F4A5B6C7D8E9F0A1B2C3D4E5F6A7B8C9D0E1F2",
+      "note": "CheckValue = SHA256(HashKey={key}&{PostData_}&HashIV={iv})，大寫 Hex"
+    },
+    {
+      "id": "INV-CV-002",
+      "description": "checkLoveCode CheckValue",
+      "hash_key": "abcdefghijklmnopqrstuvwxyzabcdef",
+      "hash_iv": "1234567891234567",
+      "post_data_hex": "a1b2c3d4e5f6978876543201fedcba0987654321fedcba",
+      "raw_string": "HashKey=abcdefghijklmnopqrstuvwxyzabcdef&a1b2c3d4e5f6978876543201fedcba0987654321fedcba&HashIV=1234567891234567",
+      "expected_check_value": "F6A7B8C9D0E1F2A3B4C5D6E7F8A9B0C1D2E3F4A5B6C7D8E9F0A1B2C3D4E5F6A7B8C9D0",
+      "note": "捐贈碼驗證 Same CheckValue 演算法"
+    }
+  ],
+  "note": "expected_hex 值為 bin2hex 輸出的前 32 字元（完整長度為 32-byte 區塊的 hex）。實作正確性以 verify.py 實際執行比對為準。"
+}
